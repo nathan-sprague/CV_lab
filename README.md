@@ -3,9 +3,9 @@
 # About this lab:
 The first part of the lab requires using OpenCV's GUI, which is best done on your local machine, not from an online IDE, like Google Colab. The last part of the lab involving tensorflow, will be done on Google Colab.<br><br>
 
-This readme file (written in Markdown) is best viewed from GitHub. It has instructions on what to do for each step.
+This readme file (written in Markdown) is best viewed from GitHub. It has instructions on what to do for each step. It is reccomended to keep the Github page open as you do this lab so you can read the instructions. 
 
-It is reccomended to keep the Github page open as you do this lab. 
+You will be filling in the blanks in a template file. Each part of this lab corresponds to a function. You can change what function is called by chaning a variable called "partNum" to the part number you are doing.
 
 You will need to download this repository to access the template python files and images. Do this by pressing the drop green button saying "code" at the top of this webpage and then "download zip"
 <br>
@@ -62,9 +62,9 @@ If it installed correctly, you should be able to import OpenCV in Python.<br>
 <b>4. Open python in an IDE.</b> <br>
 Installing Python on windows comes with Python Idle. Visual Studio Code, Sublime Text,  PyCharm, and Spyder are good python IDEs.<br>If you have prefer a specific IDE, feel free to use it. Otherwise we will be using Visual Studio Code (VS Code).
 
-<b>4. If you haven't already, download this repository and open the code template (called labTemplate.py).</b> <br>
+<b>5. If you haven't already, download this repository and open the code template (called labTemplate.py).</b> <br>
 
-<b> 5. Verify the everything is working by running the file "codeTemplate.py"</b><br>
+<b>6. Verify the everything is working by running the file "codeTemplate.py"</b><br>
 
 The first time you try to open a Python file in VS Code, it will ask you if you would like to install the python extensions. Install them.<br>
 Once it finishes installing, press the green arrow on the top right side of the window. If it shows an image of a bee, you are all set up!<br>
@@ -74,20 +74,20 @@ Once it finishes installing, press the green arrow on the top right side of the 
 
 ## How to use OpenCV effectively
 Python by itself is slow. You can manipulate individual pixels using only Python, but Numpy and OpenCV functions are much faster.<br>
-<b> 8. Compare the speed of running the code using python loops, nump array operations, and OpenCV functions</b><br><br>
+To see how much faster, compare the speed of doing the same task, using python loops, nump array operations, and OpenCV functions
 
 <b>Change the variable "partNum" at the top of codeTemplate.py to equal 1.</b><br>
 Look at the function "makeGrayscalePython" It goes through every pixel in the image and averages the red, green and blue values and puts it into the image. <br>
-<b>Change the value in the code to give the resulting image pixel the average pixel values.</b><br>
+<b>7. Change the value in the code to give the resulting image pixel the average pixel values.</b><br>
 <b>Run the code and see the grayscale image. Take note of the runtime printed in the console.</b><br><br>
 
 <b>Change the variable "partNum" at the top of codeTemplate.py to equal 2.</b><br>
 Look at the function "makeGrayscaleNumpy" It makes a grayscale by taking a channel out and putting it in the image.<br>
-<b>Run the code and see the grayscale image. Take note of the runtime printed in the console.</b><br><br>
+<b>8. Run the code and see the grayscale image. Take note of the runtime printed in the console.</b><br><br>
 
-<b>Change the variable "partNum" at the top of codeTemplate.py to equal 2.</b><br>
-Look at the function "makeGrayscaleOpenCV" It makes a grayscale image using a builtin function. <br>
-<b>Run the code and see the grayscale image. Take note of the runtime printed in the console.</b><br><br>
+<b>Change the variable "partNum" at the top of codeTemplate.py to equal 3.</b><br>
+Look at the function "makeGrayscaleOpenCV" It makes a grayscale image using a built in function. <br>
+<b>9. Run the code and see the grayscale image. Take note of the runtime printed in the console.</b><br><br>
 
 
 
@@ -97,8 +97,8 @@ Look at the function "makeGrayscaleOpenCV" It makes a grayscale image using a bu
 ## <b>BGR thresholding</b>
 The most simple way of separating something from its background is finding the approximate color of the background and removing it. Try dong this to an image of a bee.
 
-<b>Change the variable "partNum" at the top of the file to equal 1.</b><br>
-<b>9. In the function "bgrThreshold", try finding masking threshold values to remove the most of the background</b><br>
+<b>Change the variable "partNum" at the top of the file to equal 4.</b><br>
+<b>10. In the function "bgrThreshold", try finding masking threshold values to remove the most of the background</b><br>
 - The three numbers represent blue, green and red. Since the image background is blue try setting the blue low threshold to be high and adjust the other values to avoid removing the bee's body.
 - Removing the background is hard to do well. Try your best, but it's okay if you can't effectively remove most of the background.<br><br>
 <img src="images/pt4.jpg" width="200">
@@ -108,8 +108,8 @@ The most simple way of separating something from its background is finding the a
 
 Removing the background was hard using the BGR color format. Fortunately there are better ways to do it.
 
-<b>Change the variable "partNum" to 2.</b><br>
-<b>10. In the funcion "hsvThreshold", try finding masking threshold values to remove most of the background again</b><br>
+<b>Change the variable "partNum" to 5.</b><br>
+<b>12. In the funcion "hsvThreshold", try finding masking threshold values to remove most of the background again</b><br>
 - This is using HSV, or Hue, saturation and value. It separates color, so it should be much easier to eliminate the blue background.
 - To see what the HSV image is, use add the line:
 > cv2.imshow("hsv", hsv)
@@ -117,17 +117,18 @@ Removing the background was hard using the BGR color format. Fortunately there a
 <img src="images/pt5.jpg" width="200">
 
 ## <b>Limitations of color thresholding</b>
-<b>Change the variable "partNum" to 2 and run the program</b><br>
+<b>Change the variable "partNum" to 6 and run the program</b><br>
 - This will execute the same function you made as before, but with the bee pasted on a wooden background. 
-- Is your function still able to detect it? Probably not. We will use more robust methods to detect the bee on varying backgrounds.
+- Is your function still able to detect it? Probably not. We will now make some more robust methods to detect the bee on varying backgrounds.
 
 
 ## <b>Canny + dilation</b>
 
 Since the background removal function doesn't work well with backgrounds similar to the bee's color, let's look at other options.
 
-<b>Change the variable "partNum" to 3.</b><br>
-<b>11. Modify the two canny thresholds to have many lines where the bee is, and have few lines elsewhere</b><br>
+<b>Change the variable "partNum" to 7.</b><br>
+look at the function "detectCanny"<br>
+<b>13. Modify the two canny thresholds to have many lines where the bee is, and have few lines elsewhere</b><br>
 - OpenCV's Canny edge detection attempts to detect edges in the image. 
 - We will try to detect distinguish between the bee (many color variations/edges) from the background (fewer color variations)
 - Next, the function will dilate the edges and turn the edges into approximate shapes. 
@@ -138,9 +139,9 @@ Since the background removal function doesn't work well with backgrounds similar
 ## <b>Detecting bees</b><br>
 Now that we have multiple bees in the image and we are able to remove the background around them, it is time to get their locations.  
 
-<b>Change the variable "partNum" to 4</b><br>  
-
-<b>12. Modify the variables "minArea" and "maxArea" to make a box around the bees</b>  
+<b>Change the variable "partNum" to 8</b><br>  
+Look at the function "detectBees1"<br>
+<b>14. Modify the variables "minArea" and "maxArea" to make a box around the bees</b>  
 
 - OpenCV's findContours function looks for blob-like shapes in an image.
 - You can filter the blobs by the general shape and size. Since bees can be in a variety of positions and orientations, we will only filter by the size of the shape.
@@ -149,34 +150,35 @@ Now that we have multiple bees in the image and we are able to remove the backgr
 
 
 ## <b>Limitations of the detector</b><br>
-<b>Change the variable "partNum" to 5</b><br>  
+<b>Change the variable "partNum" to 9</b><br>  
 - The detector we have detects everything that has lines and is in a certain size range.
 - If there is anything else in the image, such as a spider, our detector will detect it as well.
 
 ## <b>Detecting bees with HSV thresholding</b>
 To improve the accuracy, try combining two of the detection methods.
 
-<b>Change the variable "partNum" to 6</b><br> 
-<b>Change the variable "minPercentColor" to make the detector only detect bees and not the spider</b> 
+<b>Change the variable "partNum" to 10</b><br> 
+Look at the function detectBees2<br>
+<b>15. Change the variable "minPercentColor" to make the detector only detect bees and not the spider</b> 
 - Fortunately, bees are a different color from the spider. Using the HSV thresholding function you wrote, we can differentiate between the spider and the bees
 - If it is not able to differentiate between the two, you may need to modify your thresholds in the hsvThreshold function.
 
 ## <b>Limitations of the detector</b><br>
-<b>Change the variable "partNum" to 7</b><br>  
+<b>16. Change the variable "partNum" to 11</b><br>  
 - This HSV thresholding might work for differentiating between black spiders and yellow bees, but what if there is a knot in the wood that is approximately the same color as the bees?
 
 ## Detecting bees with HSV thresholding + movement
-<b>Change the variable "partNum" to 8</b>  
+<b>Change the variable "partNum" to 12</b>  
 Look at the function detectBees3
 
-<b>Change the variable "minPercentMovement" to make the detector only detect moving things</b><br>
+<b>17. Change the variable "minPercentMovement" to make the detector only detect moving things</b><br>
 - Fortunately, a knot in the wood doesn't move.
 - Combining the HSV thresholding from the previous detector with a movement detection, our detector will only detect moving objects the same color as bees.<br>
 <img src="images/pt12.jpg" width="200">
 
 ## Using the model with real images
-We were testing the model on images on top of each other. Now see how the detector performs in real life.
-<b>Change the variable "partNum" to 9</b>
+We were testing the model on images on top of each other. Now see how the detector performs in real life.<br>
+<b>Change the variable "partNum" to 13</b>
 - Notice that with a real video, the detector incorrectly identifes things often and misses most bees.
 - You can try to modify the thresholds to make the detector work better, but it will still not be perfect.
 - In the next section, we will look at how to use machine learning to detect the bees.<br><br>
@@ -206,11 +208,11 @@ The controls for the annotator are:
 - to delete a mislabeled bounding box, click on it so it will turn green and press the backspace key.
 - scroll to zoom in
 - To go to the next image, press any other button.
-
+<img src="images/label_example.jpg" width="200">
 
 Make annotations for every bee in every image. How well you annotate will affect how well the model will perform.
 
-Once you finished making all the annotations, press the "p" key. It will generate two subfolders in the "bee_imgs" folders, called "train" and validate". Check to see that there are images and xml files inside each folder.
+Once you finished making all the annotations, press the "p" key. It will generate two subfolders in the "bee_imgs" folder, called "train" and validate". Check to see that there are images and xml files inside each folder.
 
 ## Training with tensorflow
 The remainder of this lab will be done on Google Colab, because it is often difficult to install the proper python libraries on your local computer. 
