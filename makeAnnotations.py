@@ -1,14 +1,17 @@
 import os
 import cv2
 import json
+import numpy as np
 
 
 imageDir = os.path.dirname(os.path.abspath(__file__))
 
-path = imageDir + "/bee_images"
+videosPath = imageDir + "/bee_images"
 saveName = "bee"
+largerRectName = ""
 
-modelName = "" # "/home/nathan/Desktop/ear_finder/ear_tflite/corn_ear_oct13.tflite" #"/home/nathan/Desktop/ear_finder/corn_ear_oct1.tflite"
+modelName = ""
+
 
 if modelName != "":
 	from tflite_support.task import core
@@ -17,137 +20,140 @@ if modelName != "":
 
 
 class Annotator:
-	def __init__(self, path, saveType, modelName=""):
-		self.annotationName = "beeAnnotation"
-		self.saveType = saveType
-		self.mouseDown = False
-		self.dragged = False
-		self.openRects = []
-		self.currentRectStart = [-1,-1]
-		self.possibleRects = []
-		self.path = path
+	def __init__(self, path, labelName, modelName="", largerRectName = ""):
+		self.currentRectangles = {"drawnRectangles": [], "tempRectangle": [[]], "possibleRectangles": [], "selectedRect": []}
 		self.firstCallback = True
-		self.allRects = {}
-		dirs = os.listdir(path)
-		if self.annotationName + ".json" in dirs:
-			with open(path + '/' + self.annotationName + '.json') as json_file:
-				data = json.load(json_file)
-			print(data)
-			self.allRects = data
+		self.path = path
+		self.labelName = labelName
+		self.savableRects = {}
+		self.unsavedChanges = False
+
+		self.useSubRects = False
+		if largerRectName != "":
+			self.useSubRects = True
+			self.largerRectName = largerRectName
+		self.selectedRectInd = -1
+
+		self.scale = (1,1)
+		self.mouseDown = False
+
+		self.falseKey = -1
+
+
+		self.buttons = {"  delete": [(20, 20), (140, 80), 8], "    prev label": [(180, 20), (360, 80), 91], " prev": [(380, 20), (460, 80), 106], " next": [(480, 20), (560, 80), 108],
+						"    next label": [(580, 20), (760, 80), 93], " exit": [(780, 20), (860, 80), 27]}
+
 		self.useDetector = False
 		if modelName != "":
 			self.useDetector = True
 			base_options = core.BaseOptions(
 			  file_name=modelName, use_coral=False, num_threads=4)
 			detection_options = processor.DetectionOptions(
-			  max_results=5, score_threshold=0.2)
+				max_results=5, score_threshold=0.1)
 			options = vision.ObjectDetectorOptions(
-			  base_options=base_options, detection_options=detection_options)
+				base_options=base_options, detection_options=detection_options)
 			self.detector = vision.ObjectDetector.create_from_options(options)
 
 
+	def mouseEvent(self, event, x, y, flags, param):
+		if y < 100:
+			if event == 4 and self.currentRectangles["tempRectangle"] == [[]]:
+				self.mouseDown = False
+				for b in self.buttons:
+					if x>self.buttons[b][0][0] and x<self.buttons[b][1][0]:
+						if y>self.buttons[b][0][1] and y<self.buttons[b][1][1]:
+							print("buttoned")
+							self.falseKey = self.buttons[b][2]
+							return
+				
+			elif event == 1:
+				return
+			y = 100
 
-	def clickAndMove(self, event, x, y, flags, param):
-		# print(event, x, y, flags, param)
+
+		y-=100
+		y=max(0, y)
+		if event == 6:
+			self.falseKey = 108 # skip 5 frames if mouse wheel clicked
+
+
+		x = int(x/self.scale)
+		y = int(y/self.scale)
 
 		if event==1:
-			print("click")
+			self.selectedRectInd = -1
+			self.currentRectangles["selectedRect"] = []
 			self.mouseDown = True
-			self.openRects += [[x,y,x,y,0]]
-			self.dragged = False
+			self.currentRectangles["tempRectangle"][0] = [x,y,x,y]
 
 		elif event==4:
-			print("release")
 			self.mouseDown = False
-			if abs(self.openRects[-1][0]-self.openRects[-1][2]) < 2 and abs(self.openRects[-1][1]-self.openRects[-1][3]) < 2:
-				self.openRects = self.openRects[0:-1]
+			tempRect = self.currentRectangles["tempRectangle"][0]
+			if len(tempRect) > 0:
+				if abs(tempRect[0] - tempRect[2]) > 5 and abs(tempRect[1]-tempRect[3]) > 5:
+					self.currentRectangles["drawnRectangles"] += [
+					[min(tempRect[0], tempRect[2]), min(tempRect[1], tempRect[3]), max(tempRect[0], tempRect[2]), max(tempRect[1], tempRect[3])]]
+					print("Made rectangle")
 
+					self.unsavedChanges = True
 
-			if self.dragged == False:
+				else:#if tempRect[0] == tempRect[2] and tempRect[1] == tempRect[3]:
+					ind = 0
 
-				j=0
-				while j<len(self.possibleRects):
-					i = self.possibleRects[j]
-					if x > min((i[0], i[2])) and x < max((i[0], i[2])):
-						if y > min((i[1], i[3])) and y < max((i[1], i[3])):
-							i+=[0]
-							self.openRects += [i]
-							self.possibleRects = self.possibleRects[0:j] + self.possibleRects[j+1::]
-							j-=1
-					j+=1
+					for rect in self.currentRectangles["drawnRectangles"]:
+						if tempRect[0] > rect[0] and tempRect[0] < rect[2]:
+							if tempRect[1] > rect[1] and tempRect[1] < rect[3]:
+								self.selectedRectInd = ind
+								print("selected", self.selectedRectInd)
+								self.currentRectangles["selectedRect"] = [rect]
+								break
 
-				j=0
-				while j<len(self.openRects):
-					i = self.openRects[j]
-					self.openRects[j][4] = 0
-					if x > min((i[0], i[2])) and x < max((i[0], i[2])):
-						if y > min((i[1], i[3])) and y < max((i[1], i[3])):
-							print("selected")
-							self.openRects[j][4] = 1
-					j+=1
+						ind += 1
 
-				
+					if self.selectedRectInd == -1:
+						ind = 0
+						for rect in self.currentRectangles["possibleRectangles"]:
+							if tempRect[0] > rect[0] and tempRect[0] < rect[2]:
+								if tempRect[1] > rect[1] and tempRect[1] < rect[3]:
+									self.selectedRectInd = len(self.currentRectangles["drawnRectangles"])
+									self.currentRectangles["drawnRectangles"] += [rect]
+									print("picked ML predicted")
+									self.currentRectangles["selectedRect"] = [rect]
+									break
+
+							ind += 1
+
+					if self.selectedRectInd == -1:
+						print("didn't select anything")
+
+				# else:
+				# 	print("Rectangle too small")
+				self.currentRectangles["tempRectangle"] = [[]]
 
 				self.dispImg()
 
+			else:
+				print("no Rectangle to be made")
 
-		elif self.mouseDown:
-			self.dragged = True
-			h, w, _ = self.ogImg.shape
-			if x>w:
-				x=w-1
-			elif y>h:
-				y=h-1
-			if x<0:
-				x=0
-			elif y<0:
-				y=0
-			self.openRects[-1][2] = x
-			self.openRects[-1][3] = y
-			# print(x, y)
+			self.currentRectangles["tempRectangle"][0] = []
+
+		elif event == 0 and self.mouseDown:
+			
+			h, w = self.openImg.shape[0:2]
+			self.currentRectangles["tempRectangle"][0][2] = min(max(x,0),w)
+			self.currentRectangles["tempRectangle"][0][3] = min(max(y,0),h)
 			self.dispImg()
-
 			
-
-	def dispImg(self):
-		img = self.ogImg.copy()
-
-
-		for i in self.openRects:
-			if i[4] == 1:
-				img = cv2.rectangle(img, (i[0], i[1]), (i[2], i[3]), (0,255,0), 2)
-			elif i[4] == 0:
-				img = cv2.rectangle(img, (i[0], i[1]), (i[2], i[3]), (255,0,0), 2)
-
-		for i in self.possibleRects:
-			img = cv2.rectangle(img, (i[0], i[1]), (i[2], i[3]), (0,255,255), 1)
-
-			
-
-		cv2.imshow("img", img)
-
-
-		if self.firstCallback:
-			cv2.setMouseCallback("img", self.clickAndMove)
-			# cv2.createButton("img",None,cv2.QT_PUSH_BUTTON,1)
-			self.firstCallback = False
-			# cv2.createButton("img", self.buttonPressed, None,cv2.QT_PUSH_BUTTON,100)
-			switch=0
-			# cv2.createTrackbar("yo", 'img',0,1, self.buttonPressed)
-
-
-	# def buttonPressed(self, val):
-	# 	print("yo", val)
-
 
 	def detectPossible(self):
-		rgb_image = cv2.cvtColor(self.ogImg, cv2.COLOR_BGR2RGB)
+		rgb_image = cv2.cvtColor(self.openImg, cv2.COLOR_BGR2RGB)
 
 		# Create a TensorImage object from the RGB image.
 		input_tensor = vision.TensorImage.create_from_array(rgb_image)
 
 		# Run object detection estimation using the model.
 		detection_result = self.detector.detect(input_tensor)
+		possibleRects = []
 		
 		for i in detection_result.detections:
 			x = i.bounding_box.origin_x
@@ -155,377 +161,570 @@ class Annotator:
 			w = i.bounding_box.width
 			h = i.bounding_box.height
 			if h > 3 and w > 3:
-				self.possibleRects += [[x,y, x+w,y+h]]
-		
+				possibleRects += [[x,y, x+w,y+h]]
+		print("found", len(possibleRects), "possible")
+		self.currentRectangles["possibleRectangles"] = possibleRects
 
-	def goThroughFiles(self):
-		allDirs = os.listdir(path)
-		dirs = []
-		for i in allDirs:
-			if i[-4::] == ".avi" or i[-4::] == ".jpg" or i[-4::] == ".mov":
-				dirs += [i]
 
-		i=0
 
-		while i < len(dirs):
-			if i < 0:
-				i=0
-			iStart = i
-			
-			file = dirs[i]
-			print("reading", file)
 
-			
-			self.openRects = []
-			
+	def dispImg(self):
+		drawImg = self.openImg.copy()
+		# (720, 1280, 3)
+		h, w = drawImg.shape[0:2]
+		self.scale = 1
+		if h != 720:
+			self.scale = 720/h
+			drawImg = cv2.resize(drawImg, (int(self.scale * w), int(self.scale*h)), interpolation = cv2.INTER_AREA)
 
-			if file[-4::] == ".jpg":
-				analyzedBefore = False
-				if file in self.allRects:
-					self.openRects = self.allRects[file]
-					analyzedBefore = True
-				
-				self.ogImg = cv2.imread(path + "/" + file)
 
-				self.possibleRects = []
-				if self.useDetector and not analyzedBefore:
-					self.detectPossible()
+		for rectType in self.currentRectangles:
+			thicknesses = {"drawnRectangles": 5, "tempRectangle": 1, "possibleRectangles": 1, "selectedRect": 5}
+			colors = {"drawnRectangles": (255,0,0), "tempRectangle": (255,0,0), "possibleRectangles": (0,255,255), "selectedRect": (0,255,0)}
 
-				self.dispImg()
 
-				k = cv2.waitKey(0)
-			
-				if k == 27:
-					break
-				elif k == 8: # delete
-					l=0
-					deleted = 0
-					while l<len(self.openRects):
-						if self.openRects[l][4] == 1:
-							self.openRects = self.openRects[0:l] + self.openRects[l+1::]
-							deleted += 1
-							l-=1
-						l+=1
-					if deleted == 0 and len(self.openRects) > 0:
-						self.openRects = self.openRects[0:-1]
+			for rect in self.currentRectangles[rectType]:
+				if len(rect) > 0:
+					drawImg = cv2.rectangle(drawImg, (int(rect[0]*self.scale), int(rect[1]*self.scale)), (int(rect[2]*self.scale), int(rect[3]*self.scale)), colors[rectType], thicknesses[rectType])
 
-				elif k == 115:
-					self.allRects[file] = self.openRects[:]
-					self.saveDataJSON()
-				elif k == 112: # save as xml
-						self.saveDataXML()
+		h, w = drawImg.shape[0:2]
+		zeros = np.zeros((h+100,w,3), dtype=np.uint8)
+		zeros[100::, :] = drawImg
+		drawImg = zeros
+		for b in self.buttons:
+			button = self.buttons[b]
+			drawImg = cv2.rectangle(drawImg, button[0], button[1], (255,255,255), -1)
+			drawImg = cv2.rectangle(drawImg, button[0], button[1], (255,255,0), 3)
+			center = (int((button[0][0]+button[1][0])/2-10*len(b)), int((button[0][1]+button[1][1])/2))
+			drawImg = cv2.putText(drawImg, b, center, cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 2, cv2.LINE_AA)
 
-				elif k == 81 or k == 106: # left
-					print("past")
-					i-=1
+		cv2.imshow("img", drawImg)
+
+
+		if self.firstCallback:
+			cv2.setMouseCallback("img", self.mouseEvent)
+
+			self.firstCallback = False
+
+
+	def manageKeyResponses(self):
+		jumpAmount = 0
+		while jumpAmount == 0:
+
+			self.falseKey = -1
+			k = -1
+			while self.falseKey == -1 and k == -1:
+				k = cv2.waitKey(10)
+
+			if self.falseKey != -1:
+				k =  self.falseKey
+
+			print(k)
+
+			if k == 27: # esc
+				if self.mouseDown:
+					self.mouseDown = False
+					self.currentRectangles["tempRectangle"] = [[]]
+					self.dispImg()
 				else:
-					if i < len(dirs)-1:
-						i+=1
+					self.saveDataJSON()
+					print("done")
+
+					exit()
+
+			elif k == 108: # l
+				jumpAmount = 5
+
+			elif k == 106: # j
+				if self.useSubRects:
+					jumpAmount = -1
+				else:
+					jumpAmount = -5
+
+			elif k == 47: # / skip to next video
+				jumpAmount = self.maxFrameNum + 2
+
+			elif k == 46: # . skip to last video
+				jumpAmount = -self.maxFrameNum - 2
+
+			elif k == 91: # [ skip to closest smaller identified rectangle
+				framesToGo = np.array([eval(i) for i in list(self.savableRects.keys())])
+				if len(framesToGo) > 0:
+					if self.frameNum > framesToGo.min():
+						closest = framesToGo[framesToGo < self.frameNum].max()
+						jumpAmount = closest - self.frameNum
 					else:
-						print("reached last image")
+						print("unable to skip, none before")
+				else:
+					print("no identified rectangles")
 
-				if self.openRects[:] != []:
-					self.allRects[file] = self.openRects[:]
-					self.openRects = []
+			elif k == 93: # ] skip to closest larger identified rectangle
+				framesToGo = np.array([eval(i) for i in list(self.savableRects.keys())])
+				if len(framesToGo) > 0:
+					if self.frameNum < framesToGo.max():
+						closest = framesToGo[framesToGo > self.frameNum].min()
+						jumpAmount = closest - self.frameNum
+					else:
+						print("unable to skip, none above")
+				else:
+					print("no identified rectangles")
 
-			elif file[-4::] == ".avi" or file[-4::] == ".mov":
-				cap = cv2.VideoCapture(path + "/" + file)
-				ret = True
-				k = 0
-				j=0
-				jStart = 0
-				frameChange = True
-				if file not in self.allRects:
-					self.allRects[file] = {}
+			elif k == 92: # \ skip to last identified rectangle
+				framesToGo = np.array([eval(i) for i in list(self.savableRects.keys())])
+				if len(framesToGo) > 0:
+					jumpAmount = framesToGo.max() - self.frameNum
+				else:
+					print("no identified rectangles")
 
-				while cap.isOpened() and ret:
+			elif k == 115: # s
+				print("Saving JSON")
+				self.saveDataJSON()
 
-					analyzedBefore = False
-					if str(j) in self.allRects[file]:
-						self.openRects = self.allRects[file][str(j)]
-						analyzedBefore = True
-					jStart = j
-					# print("frame?", cap.get(cv2.CAP_PROP_POS_FRAMES))
-					if frameChange:
-						ret, self.ogImg = cap.read()
-						print("reading frame",j)
-					if not ret:
-						print("done reading this image")
-						break
-					frameChange = False
+			elif k == 112: # p
+				print("exporting images")
+				if self.useSubRects:
+					self.saveNormalDataXML()
+				else:
+					self.saveNormalDataXML()
 
-					self.possibleRects = []
-					if self.useDetector and not analyzedBefore:
-						self.detectPossible()
-					
+			elif k == 111: # o
+				print("exporting just images")
+				self.saveImagesData()
+
+			elif k == 8: # d
+				print("delete", self.selectedRectInd)
+				if self.selectedRectInd >= 0:
+					self.currentRectangles["drawnRectangles"] = self.currentRectangles["drawnRectangles"][0:self.selectedRectInd] + self.currentRectangles["drawnRectangles"][self.selectedRectInd+1::]
+					print("deleted selected rectangle")
+					self.currentRectangles["selectedRect"] = []
+					self.selectedRectInd = -1
+					self.unsavedChanges = True
 					self.dispImg()
 
-					k = cv2.waitKey(0)
-					print(k)
+				elif len(self.currentRectangles["drawnRectangles"]) > 0:
+					self.currentRectangles["drawnRectangles"] = self.currentRectangles["drawnRectangles"][0:-1]
+					print("deleted last rectangle")
+					self.unsavedChanges = True
+					self.dispImg()
+
+				else:
+					print("no rectangles to delete")
+
+			elif k == 99: # c
+				print("clear")
+				self.unsavedChanges = True
+				self.currentRectangles = {"drawnRectangles": [], "tempRectangle": [[]], "possibleRectangles": [], "selectedRect": []}
+				self.dispImg()
+
+			else:
+				jumpAmount += 1
 
 
-					if k == 27:
-						i=len(dirs)
-						break
-				
-					elif k == 81 or k == 106: # left
-						print("back 1 frame (watch out ineffient)")
-
-						cap = cv2.VideoCapture(path + "/" + file)
-						m = 0
-						if j == 0:
-							i-=2
-							break
-
-						while m < j-1: # watch out: this is pretty inefficient. Use sparingly
-							# print(m)
-							cap.read()
-							m += 1
-						j-=1
-						frameChange = True
+		rects = self.currentRectangles["drawnRectangles"]
+		self.currentRectangles = {"drawnRectangles": [], "tempRectangle": [[]], "possibleRectangles": [], "selectedRect": []}
+		print(len(rects), "labels made")
+		return jumpAmount, rects
 
 
-						if False: # opencv doesn't let you go backwards (right now)
-							j-=1
-							print("left")
-
-							next_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
-							current_frame = next_frame - 1
-							previous_frame = current_frame - 1
-							if previous_frame >= 0:
-	  							cap.set(cv2.CAP_PROP_POS_FRAMES, previous_frame)
-	  							print("cap set")
-
-							if j < 0:
-								i-=2
-								break
-
-					elif k == 112: # save as xml
-						self.saveDataXML()
-
-					elif k == 115:
-						self.allRects[file][str(j)] = self.openRects[:]
-						self.saveDataJSON()
-
-					elif k == 108:
-						print("skip 5")
-						m = 0
-						j+=1
-						for m in range(0,5):
-							cap.read()
-							j+=1
-						frameChange = True
-
-					elif k == 8: # delete
-						l=0
-						deleted = 0
-						while l<len(self.openRects):
-							if self.openRects[l][4] == 1:
-								self.openRects = self.openRects[0:l] + self.openRects[l+1::]
-								l-=1
-								deleted += 1
-							l+=1
-						if deleted == 0 and len(self.openRects) > 0:
-							self.openRects = self.openRects[0:-1]
-
-					elif k == 91: # '[' - go to previously labeled image
-						closestSmall = -1
-						keys = list(self.allRects[file])
-						keys.sort(key=int)
-
-						m=0
-						while m < len(keys):
-							check = keys[m]
-							if int(check) >= j:
-								break
-							elif self.allRects[file][check] != []:
-								closestSmall = int(check)
-							m += 1
-						print("closest small", closestSmall)
-						if closestSmall != -1:
-							j=0
-							cap = cv2.VideoCapture(path + "/" + file)
-							while j < closestSmall:
-								cap.read()
-								j+=1
-							frameChange = True
-
-					elif k == 93: # ']' - go to next labeled image
-						closestBig = -1
-						keys = list(self.allRects[file])
-						keys.sort(key=int, reverse=True)
-
-						m=0
-						while m < len(keys):
-							check = keys[m]
-							if int(check) <= j:
-								break
-							elif self.allRects[file][check] != []:
-								closestBig = int(check)
-							m += 1
-						print("closest big", closestBig)
-						if closestBig != -1:
-							while j < closestBig-1:
-								cap.read()
-								j+=1
-							j+=1
-							frameChange = True
-
-					elif k == 92: # '\' - go to end of labeled images (in video)
-						closestBig = -1
-						keys = list(self.allRects[file])
-						keys.sort(key=int, reverse=True)
-
-						print("going to last labeled image... please wait")
-						if len(keys) > 0:
-							if int(keys[0]) > j:
-								while j < int(keys[0])-1:
-									cap.read()
-									j+=1
-								j+=1
-								frameChange = True
-						print("got it.")
 
 
-					elif k == 47: # '/' - go to next image/video
+
+	def goThroughDir(self):
+		print("starting")
+		self.allFiles = os.listdir(self.path)
+		self.dirs = []
+		for i in self.allFiles:
+			if i[-4::] in [".avi", ".png", ".jpg", ".mov"]:
+				self.dirs += [i]
+
+		self.dirs.sort()
+
+		self.dirInd = 0
+
+		self.subRectInd = 0
+		self.maxSubRects = 0
+		self.prelabeledInd = 0
+
+		self.frameNumInd = 0
+		self.desiredFrameNum = 0
+		self.maxFrameNum = 0
+
+
+		while self.dirInd < len(self.dirs):
+			self.desiredFrameNum = 0
+
+			fileName = self.dirs[self.dirInd]
+			print("reading", fileName, "file number", self.dirInd+1, "out of", len(self.dirs))
+
+			self.jsonName = fileName[0:-4] + self.labelName + ".json"
+			if self.jsonName in self.allFiles:
+				with open(self.path + '/' + self.jsonName) as json_file:
+					data = json.load(json_file)
+				print("loaded in", data)
+				self.savableRects = data
+			else:
+				self.savableRects = {}
+				print("no annotation data found")
+			self.unsavedChanges = False
+
+			if self.useSubRects:
+				self.largerRectNameJson = fileName[0:-4] + self.largerRectName + ".json"
+				if self.largerRectNameJson in self.allFiles:
+					with open(self.path + '/' + self.largerRectNameJson) as json_file:
+						data = json.load(json_file)
+					self.largerRects = data
+					self.rectFrames = [eval(i) for i in list(data.keys())] 
+					self.desiredFrameNum = int(self.rectFrames[0])-1
+
+				else:
+					print("no larger rectangles for", fileName, "called", self.largerRectNameJson)
+					print(self.allFiles)
+					self.dirInd+=1
+					continue
+
+
+			if fileName[-4::] in [".avi", ".mov"]:
+				cap = cv2.VideoCapture(self.path + "/" + fileName)
+				self.maxFrameNum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+				if self.maxFrameNum == 0:
+					print("number of frames not known. May need to move through manually")
+					self.maxFrameNum = 0
+					
+
+				self.frameNum = 0
+				while cap.isOpened():
+
+					
+					cap.set(1,self.desiredFrameNum)
+
+					ret, self.openImg = cap.read()
+
+					
+
+					if not ret:
+						print("failed to read frame")
+						self.dirInd += 1
 						break
 
+					oldFrameNum = self.frameNum
+					self.frameNum = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+					print(oldFrameNum, self.frameNum)
+					if oldFrameNum == self.frameNum:
+						print("the video is strange, attempting to fix")
+						cap.release()
+						self.fixVideo(self.path + "/" + fileName)
+						cap = cv2.VideoCapture(self.path + "/" + fileName)
+						cap.set(1,self.desiredFrameNum)
+						ret, self.openImg = cap.read()
+						self.frameNum = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+						self.maxFrameNum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+						print("back in business!")
+
+					
+
+					
+
+					print("reading frame", self.frameNum, "out of", self.maxFrameNum)
+
+
+					if self.useSubRects:
+						if str(self.frameNum) not in self.savableRects:
+							self.savableRects[str(self.frameNum)] = {}
+							print("no premade rectangles")
+						else:
+							print("frame rects", self.savableRects[str(self.frameNum)])
+
+						print("there are", len(self.rectFrames), "frames with rectangles")
+						self.subRectInd = 0
+						self.maxSubRects = len(self.largerRects[str(self.frameNum)])
+						ogImg = self.openImg.copy()
+						while self.subRectInd < self.maxSubRects and self.subRectInd >= 0:
+							if str(self.subRectInd) in self.savableRects[str(self.frameNum)]:
+								self.currentRectangles["drawnRectangles"] = self.savableRects[str(self.frameNum)][str(self.subRectInd)]
+								print("current rectangles", self.currentRectangles["drawnRectangles"])
+							else:
+								print("no rectangles found at", self.subRectInd, "in", self.savableRects[str(self.frameNum)])
+
+							print("reading rectangle", self.subRectInd+1, "out of", self.maxSubRects)
+							rect = self.largerRects[str(self.frameNum)][self.subRectInd]
+							self.openImg = ogImg[rect[1]:rect[3], rect[0]:rect[2]]
+							self.dispImg()
+							change, rectangles = self.manageKeyResponses()
+							self.subRectInd += change
+							if rectangles != []:
+								if str(self.frameNum) not in self.savableRects:
+									self.savableRects[str(self.frameNum)] = {}
+								self.savableRects[str(self.frameNum)][str(self.subRectInd)] = rectangles
+								print("added rectangles")
+
+
+						frameInd = self.rectFrames.index(self.frameNum)
+						if self.subRectInd < 0:
+							frameInd -= 1
+							if frameInd < 0 and self.dirInd > 0:
+								self.dirInd += 1
+								print("going back a video", self.dirInd)
+								break
+							elif frameInd < 0:
+								print("dirind", self.dirInd)
+								print("can't go back any more")
+								frameInd += 1
+
+
+						else:
+							frameInd += 1
+							if frameInd >= len(self.rectFrames):
+								self.dirInd += 1
+								if self.dirInd >= len(self.dirs):
+									print("no more videos")
+									self.dirInd -= 1
+								else:
+									print("going to next video")
+									break
+
+						self.desiredFrameNum = self.rectFrames[frameInd]-1
 
 					else:
-						frameChange = True
-						j+=1
+						if str(self.frameNum) in self.savableRects:
+							self.currentRectangles["drawnRectangles"] = self.savableRects[str(self.frameNum)][:]
+						elif self.useDetector:
+							self.detectPossible()
 
-					if self.openRects[:] != []:
-						if self.mouseDown == False:
-							m = 0
-							while m<len(self.openRects):
-								orr = self.openRects[m]
-								if abs(orr[0] - orr[2]) < 3 or abs(orr[1] - orr[3]) < 3:
-									self.openRects = self.openRects[0:m] + self.openRects[m+1::]
-									m-=1
-									print("removed tiny rectangle")
-								m+=1
-						self.allRects[file][str(jStart)] = self.openRects[:]
-						self.openRects = []
+						self.dispImg()
+					
+						change, rectangles = self.manageKeyResponses()
 
-				if self.openRects[:] != []:
-					self.allRects[file][str(jStart)] = self.openRects[:]
-					self.openRects = []
+						if len(rectangles) > 0:
+							self.savableRects[str(self.frameNum)] = rectangles
+						elif str(self.frameNum) in self.savableRects:
+							self.savableRects.pop(str(self.frameNum))
 
-				i+=1
+						self.desiredFrameNum += change
 
-			else: 
-				print("Error: should never get here")
-				exit()
+						if self.desiredFrameNum >= self.maxFrameNum and self.maxFrameNum != 0:
+							print("video ended")
+							if self.dirInd < len(self.dirs):
+								self.dirInd += 1
+							break
+						elif self.desiredFrameNum < 0:
+							print("previous video")
+							if self.dirInd > 0:
+								self.dirInd -= 1
 
-		if i == len(dirs):
-			print("finished labeling all the images. Saving.")
+							break
+
+				cap.release()
+
+
+
+
+			elif fileName[-4::] in [".png", ".jpg"]:
+				self.useSubRects = True
+				self.openImg = cv2.imread(self.path + "/" + fileName)
+
+				self.jsonName = fileName[0:-4] + self.labelName + ".json"
+				if self.jsonName in self.allFiles:
+					with open(self.path + '/' + self.jsonName) as json_file:
+						data = json.load(json_file)
+					print("loaded in", data)
+					self.savableRects = data
+				else:
+					self.savableRects = {}
+					print("no annotation data found --- ")
+				self.unsavedChanges = False
+
+				self.frameNum = 1
+				if str(1) in self.savableRects:
+					self.currentRectangles["drawnRectangles"] = self.savableRects[str(1)][:]
+				elif self.useDetector:
+					self.detectPossible()
+
+				print("displaying image")
+				self.dispImg()
+
+
+				change, rectangles = self.manageKeyResponses()
+
+				if rectangles != []:
+					self.savableRects["1"] = rectangles
+
+				self.dirInd += change
+				self.useSubRects = False
+
+			else:
+				print("unknown file type")
+				self.dirInd += 1
+
 			self.saveDataJSON()
 
+			if self.dirInd == len(self.dirs):
+				print("no more videos!")
+				self.dirInd -= 1
 
-	def reduceJSON(self):
-		k = list(self.allRects.keys())
-		reduced = {}
-		numEars = 0
-		numImgs = 0
-		for i in k:
-			if i[-4::] == ".jpg":
-				if self.allRects[i] != []:
-					reduced[i] = self.allRects[i]
-					numImgs += 1
-					numEars += len(self.allRects[i])
-			else:
-				l = list(self.allRects[i].keys())
-				dictToAdd = {}
-				for j in l:
-					if self.allRects[i][j] != []:
-						dictToAdd[j] = self.allRects[i][j]
 
-						numEars += len(self.allRects[i][j])
-						numImgs += 1
+		img = np.zeros((300,300,3), dtype=np.uint8)
 
-				if len(list(dictToAdd.keys())) > 0:
-					reduced[i] = dictToAdd 
-		print("reduced", reduced)
-		print("recorded", numEars, "ears from", numImgs, "images")
-		return reduced
+		cv2.imshow("img", img)
+		k = 0
+		while k != 27:
+			k = cv2.waitKey(0)
+			print("press escape")
+		print("done")
 
 
 	def saveDataJSON(self):
-		reduced = self.reduceJSON()
-		
-		
-		jsonStr = json.dumps(reduced)
-		with open(self.path + "/" + self.annotationName + ".json", 'w') as fileHandle:
-			fileHandle.write(str(jsonStr))
-			fileHandle.close()
+		if self.unsavedChanges:
+			if self.savableRects != {}:
+				jsonStr = json.dumps(self.savableRects)
+				with open(self.path + "/" + self.jsonName, 'w') as fileHandle:
+					fileHandle.write(str(jsonStr))
+					fileHandle.close()
+				print("Saving", jsonStr)
+				print("saved", self.jsonName)
+
+			elif self.jsonName in self.allFiles:
+				os.remove(self.path + "/" + self.jsonName)
+				print("had saved something, nothing left so deleted it")
+			else:
+				print("nothing was saved, nothing to save")
+		else:
+			print("no changes to save")
+		self.unsavedChanges = False
 
 
-	def saveDataXML(self):
+	def saveImagesData(self):
+		# save just the cropped images
+		dirName = self.path + "/" + self.labelName + "_images"
+		if not os.path.exists(dirName):
+			os.makedirs(dirName)
+
+		for fileName in self.dirs:
+			jsonName = fileName[0:-4] + self.labelName + ".json"
+			if jsonName in self.allFiles:
+
+				with open(self.path + '/' + jsonName) as json_file:
+					data = json.load(json_file)
+				print("found data for", fileName)
+				frameNums = [eval(i) for i in list(data.keys())]
+				cap = cv2.VideoCapture(self.path + "/" + fileName)
+
+				for frameNum in frameNums:
+					cap.set(1,frameNum-1)
+					ret, img = cap.read()
+					if not ret:
+						print("no frame found at frame number", frameNum)
+						break
+
+					
+					i = 0
+					for rectNum in data[str(frameNum)]:
+						i+=1
+						if rectNum[2] > rectNum[0] and rectNum[3] > rectNum[1]:
+
+							saveName = fileName[0:-4] + "_f" + str(frameNum) + "_r" + str(i) + ".jpg"
+							cv2.imwrite(dirName + "/" + saveName, img[rectNum[1]:rectNum[3], rectNum[0]:rectNum[2]])
+							if True:
+								cv2.imshow("saving", img[rectNum[1]:rectNum[3], rectNum[0]:rectNum[2]])
+								cv2.waitKey(1)
+
+		cv2.destroyWindow('saving')
+		print("done saving")
+
+
+
+	def saveNormalDataXML(self):
+		self.saveDataJSON()
+
 		print("saving xml files")
-		trainDirName = self.path + "/train"
+		trainDirName = self.path + "/" + self.labelName + "_train"
 		if not os.path.exists(trainDirName):
 			os.makedirs(trainDirName)
-		validDirName = self.path + "/validate"
+		validDirName = self.path + "/" + self.labelName + "_validate"
 		if not os.path.exists(validDirName):
 			os.makedirs(validDirName)
 
-		reduced = self.reduceJSON()
-
+		showImgs = True
 		imgCount = 0
-		for i in reduced:
-			if i[-4::] == ".jpg":
-				imgCount+=1
-				dirName = trainDirName
-				if imgCount%10 == 0:
-					dirName = validDirName
-				img = cv2.imread(self.path + "/" + i)
-				h, w, _ = img.shape
-				self.saveXML(dirName + "/", i, reduced[i], [w,h], i)
-				cv2.imwrite(dirName + "/" + i, img)
-				
-			if i[-4::] == ".avi" or i[-4::] == ".mov":
-				cap = cv2.VideoCapture(self.path + "/" + i)
-				ret = True
-				keys = list(reduced[i].keys())
-				keys.sort(key = int)
-				print("saving annotations in video", i)
-				print("sorted keys", keys)
+		labelCount = 0
+		for fileName in self.dirs:
+			print(fileName)
 
-				k=-1
-				for j in keys:
-					
-					while k<int(j):
+			jsonName = fileName[0:-4] + self.labelName + ".json"
+			if jsonName in self.allFiles:
+
+				with open(self.path + '/' + jsonName) as json_file:
+					data = json.load(json_file)
+				print("found data for", fileName)
+
+				if fileName[-4::] in [".mov", ".avi"]:
+					frameNums = [eval(i) for i in list(data.keys())]
+					cap = cv2.VideoCapture(self.path + "/" + fileName)
+
+					for frameNum in frameNums:
+						if imgCount%10 == 0:
+							dirName = validDirName
+						else:
+							dirName = trainDirName
+						imgCount += 1
+
+
+						saveName = fileName[0:-4] + "_f" + str(frameNum) + ".jpg"
+
+						cap.set(1,frameNum-1)
 						ret, img = cap.read()
-						# cv2.waitKey(1)
-						k+=1
-						# print(k)
-					img2 = img.copy()
-					for d in reduced[i][j]:
-						img2 = cv2.rectangle(img2, (d[0], d[1]), (d[2], d[3]), (0,255,0), 2)
-					# cv2.imshow("saving", img2)
+						if not ret:
+							print("no frame found at frame number", frameNum)
+							break
 
-					imgCount+=1
-					dirName = trainDirName
-					if imgCount%10 == 0:
-						dirName = validDirName
-					
-					# cv2.waitKey(0)
-					h, w, _ = img.shape
-					saveName = "f" + j + "_" + i[0:-4] + ".jpg"
-					self.saveXML(dirName + "/", saveName, reduced[i][j], [w,h], saveName)
-					cv2.imwrite(dirName + "/" + saveName, img)
+						if showImgs:
+							if imgCount%10 == 0:
+								cv2.imshow("saving", img)
+								cv2.waitKey(1)
+
+						cv2.imwrite(dirName + "/" + saveName, img)
+
+						rects = data[str(frameNum)]
+						labelCount += len(rects)
+
+						saveTypes = [self.labelName] * len(rects)
+						self.saveXML(dirName, saveName, rects, saveTypes, img.shape[0:2])
+
+				elif fileName[-4::] == ".jpg":
+
+					if "1" in data:
+						print(data["1"])
+						rects = data["1"]
+						saveName = fileName
+						saveTypes = [self.labelName] * len(rects)
+						img = cv2.imread(self.path + "/" + fileName)
+						cv2.imshow("saving", img)
+						cv2.waitKey(1)
+						labelCount += len(rects)
+						imgCount += 1
+						self.saveXML(self.path, saveName, rects, saveTypes, img.shape[0:2])
+				else:
+					print("unknown file", fileName, "type", fileName)
+			
+
+
+		if showImgs:
+			cv2.destroyWindow('saving')
+
+
+			
+		print("saved", labelCount, "labels from", imgCount, "frames")
+
+
 		print("Saved all")
 
 
-
-
-	def saveXML(self, path, filename, objects, imshape, name):
+	def saveXML(self, folder, fileName, rectangles, saveTypes, imshape):
 
 		text = """<annotation>
-		<folder>annotated2</folder>
-		<filename>""" + filename + """</filename>
-		<path>""" + os.path.abspath(path) + "/"  + filename + """</path>
+		<folder>""" + folder + """</folder>
+		<filename>""" + fileName[0:-4] + ".jpg" + """</filename>
+		<path>""" + folder + "/"  + fileName[0:-4] + ".jpg" + """</path>
 		<source>
 		<database>Unknown</database>
 		</source>
@@ -536,28 +735,67 @@ class Annotator:
 		</size>
 		<segmented>0</segmented>"""
 
-		for i in objects:
+		i=0
+		while i < len(rectangles):
+			l = rectangles[i]
 			text += """<object>
-			<name>""" + self.saveType + """</name>
+			<name>""" + saveTypes[i] + """</name>
 			<pose>Unspecified</pose>
 			<truncated>0</truncated>
 			<difficult>0</difficult>
 			<bndbox>
-			<xmin>""" + str(min([i[0], i[2]])) + """</xmin>
-			<ymin>""" + str(min([i[1], i[3]])) + """</ymin>
-			<xmax>""" + str(max([i[0], i[2]])) + """</xmax>
-			<ymax>""" + str(max([i[1], i[3]])) + """</ymax>
+			<xmin>""" + str(l[0]) + """</xmin>
+			<ymin>""" + str(l[1]) + """</ymin>
+			<xmax>""" + str(l[2]) + """</xmax>
+			<ymax>""" + str(l[3]) + """</ymax>
 			</bndbox>
 			</object>"""
+			i+=1
 
 		text += """\n</annotation>"""
 
 
-		filename = filename[0:-4] + ".xml"
-		print("saving data as", filename)
-		with open(path + filename, 'w') as fileHandle:
-			fileHandle.write(text)
-			fileHandle.close()
+		fileName = fileName[0:-4] + ".xml"
 
-ann = Annotator(path, saveName, modelName)
-ann.goThroughFiles()
+		if True:
+			with open( folder + "/" + fileName, 'w') as fileHandle:
+				fileHandle.write(text)
+				fileHandle.close()
+
+
+	def fixVideo(self, fileName):
+		print("fixing the video. This might take a while, but you only have to do it once")
+		oldFileName = fileName[0:-4] + "_corrupted.avi_bad"
+		os.rename(fileName, oldFileName)
+		cap = cv2.VideoCapture(oldFileName)
+
+		frame_width = int(cap.get(3))
+		frame_height = int(cap.get(4))
+		   
+		size = (frame_width, frame_height)
+
+		frameCount = 0
+		saveMethod = 'MJPG'
+		colorWriter = cv2.VideoWriter(fileName, cv2.VideoWriter_fourcc(*saveMethod), 30, size)
+		ret = cap.isOpened()
+		while ret:
+			
+			ret, imgOG = cap.read()
+			if ret:
+				img = imgOG.copy()
+				frameCount += 1
+				if frameCount%10 == 0:
+					cv2.imshow("img", img)
+					colorWriter.write(img)
+					k = cv2.waitKey(1)
+					if k == 27:
+						break
+
+		cap.release()
+		colorWriter.release()
+
+		print("done")
+
+
+annot = Annotator(videosPath, saveName, modelName, largerRectName)
+annot.goThroughDir()
