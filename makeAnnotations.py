@@ -729,8 +729,8 @@ class Annotator:
 		<database>Unknown</database>
 		</source>
 		<size>
-		<width>""" + str(imshape[0]) + """</width>
-		<height>""" + str(imshape[1]) + """</height>
+		<width>""" + str(imshape[1]) + """</width>
+		<height>""" + str(imshape[0]) + """</height>
 		<depth>3</depth>
 		</size>
 		<segmented>0</segmented>"""
