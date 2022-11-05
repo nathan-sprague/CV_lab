@@ -5,7 +5,7 @@ The first part of the lab requires using OpenCV's GUI, which is best done on you
 
 This readme file (written in Markdown) is best viewed from GitHub. It has instructions on what to do for each step.
 
-It is reccomended to keep the Github page open as you do this lab. 
+It is recomended to keep the Github page open as you do this lab. 
 
 
 # Goal of the lab
@@ -79,7 +79,8 @@ If you cannot install some of the things, try using Google. Good luck!
 https://www.virtualbox.org/wiki/Downloads
     - Virtualbox 7 was released recently, but you might have trouble installing it. Use Virtualbox 6, it works the same.
 
-2. Download the Virtualbox appliance (~10 GB)
+2. Download the Virtualbox appliance (~10 GB) with this link:<br>
+https://1drv.ms/u/s!Agv1c56G9RoIw08aTF3YWnypFn1-?e=8aEqug
 
 3. Open Virtualbox and press file>import appliance<br>
 <img src="images/vbox1.jpg" width="600">
@@ -87,7 +88,7 @@ https://www.virtualbox.org/wiki/Downloads
 4. Select the 10 GB virtualbox appliance you downloaded<br>
 <img src="images/vbox2.jpg" width="600">
 
-5. Chooose hardware settings. Pick an amount of ram and number of CPU cores that you would like. A safe amount would be around half of what your computer has. For example, if you have 16 GB of RAM and 12 cores, choose 8192 MB of RAM and 6 cores. You can change this later.<br>
+5. Choose hardware settings. Pick an amount of ram and number of CPU cores that you would like. A safe amount would be around half of what your computer has. For example, if you have 16 GB of RAM and 12 cores, choose 8192 MB of RAM and 6 cores. You can change this later.<br>
 <img src="images/vbox3.jpg" width="600">
 
 6. Once it installs, there should be a virtual machine that shows up. Press the green arrow at the top<br>
@@ -95,7 +96,7 @@ https://www.virtualbox.org/wiki/Downloads
 
 7. It will boot into a new operating system. The password is: <i>lab</i>
 
-8. Adjust the size of the display by clicking the start button in the bottom left corner, open the application "monitor settings" and picking an appropriate resolution.
+8. Adjust the size of the display by clicking the start button in the bottom left corner, open the application "monitor settings" and pick an appropriate resolution.
 
 9. Open the folder called lab.
 
@@ -106,14 +107,11 @@ https://www.virtualbox.org/wiki/Downloads
 If it shows an image of a bee, you are all set up!<br>
 <img src="images/bee1.jpg" width="200">
 
-
-Now that you have a virtual machine set up, it might 
-
 <br>
 
 ## How to use OpenCV effectively
 Python by itself is slow. You can manipulate individual pixels using only Python, but Numpy and OpenCV functions are much faster.<br>
-<b> Compare the speed of running the code using python loops, nump array operations, and OpenCV functions</b><br><br>
+<b> Compare the speed of running the code using python loops, numpy array operations, and OpenCV functions</b><br><br>
 
 <b>Change the variable "partNum" at the top of codeTemplate.py to equal 1.</b><br>
 Look at the function "makeGrayscalePython" It goes through every pixel in the image and averages the red, green and blue values and puts it into the image. <br>
@@ -134,7 +132,7 @@ Look at the function "makeGrayscaleOpenCV" It makes a grayscale image using a bu
 # Section 1: Using OpenCV to detect bees using non-ML methods
 
 ## <b>BGR thresholding</b>
-The most simple way of separating something from its background is finding the approximate color of the background and removing it. Try dong this to an image of a bee.
+The most simple way of separating something from its background is finding the approximate color of the background and removing it. Try doing this to an image of a bee.
 
 <b>Change the variable "partNum" at the top of the file to equal 4.</b><br>
 <b>In the function "bgrThreshold", try finding masking threshold values to remove the most of the background</b><br>
@@ -227,12 +225,12 @@ We were testing the model on images on top of each other. Now see how the detect
 # Section 2: Using machine learning to detect bees
 
 ## Disclaimer for bees with machine learning
-Before you begin, be aware that bees are particularly hard to train. Unlike many things people like to do object detection for, such as people, cars and pets, bees are small, dont sit still, and fly around in all directions. Do not expect 100% accuracy. We are working with many bees and just want a general idea of how many bees there are. If you have dissapointing results, you can try training for longer and with more images than what is suggested here.
+Before you begin, be aware that bees are particularly hard to train. Unlike many things people like to do object detection for, such as people, cars and pets, bees are small, don't sit still, and fly around in all directions. Do not expect 100% accuracy. We are working with many bees and just want a general idea of how many bees there are. If you have disapointing results, you can try training for longer and with more images than what is suggested here.
 
 ##  What is Machine Learning?
 Machine learning is a subset of artificial intelligence. It relies on statistics to find patterns without explicitly being told by a human. It has been around for a long time, but it has been particularly useful in the last decade because of the improvement in computational power. 
 
-We will be using supervised neural networks, a subset of machine learning. With supervised learning, you give the computer examples of what you want to detect, along with things you dont want it to detect.
+We will be using supervised neural networks, a subset of machine learning. With supervised learning, you give the computer examples of what you want to detect, along with things you don't want it to detect.
 
 The computer looks for weights to multiply the pixels of the image by, and then if the product, plus an added bias, meets a specific threshold, a "neuron" is activated.  These activations can be multiplied by weights and a bias can be added again to activate other neurons. Each time this is done is called a layer. Depending on which neurons are activated, the computer can identify what it is.
 This training takes time and many positive and negative examples to identify good weights and biases for an accurate neural network.
@@ -266,7 +264,7 @@ For this lab, there are almost 500 images of bees in the folder "bee_images" tha
 <br><img src="images/annotate1.jpg" width="400"><br>
 
 <b>After labeling > 100 files, export the images</b><br>
-- You will see a few options to choose. Keep them the way they are for now. Just press "Export!"
+- You will see a few options to choose from. Keep them the way they are for now. Just press "Export!"
  - It will flash through all of the images you trained.
  - Look in the folder called "bee_images". There will be two folders. One called bee_train, and one called bee_validate. Inside the folders, there are the images that you labeled, plus an .xml file that has the bounding boxes that you made.
  - The bee_train folder should have about 10x as many files as the bee_validate folder. The ratio can be whatever you want, but 10:1 is typically used.
@@ -280,7 +278,7 @@ Now that you have some labeled images, it is time to train!<br>
 - Look at the line that says:<br>
 	>model = object_detector.create(train_data, model_spec=spec, batch_size=4, train_whole_model=True, epochs=20, validation_data=val_data)
     - It uses the training data and validation data you previously looked at.
-    - The epochs=20 means that it will train for 20 epochs. Changing this affects how long it takes to train. This will be clear when you start training. If you bring make the number lower, it will train faster but the fit won't be as good. If you make the number higher, the fit might be better, but it will train longer and there is a chance of overfitting.
+    - The epochs=20 means that it will train for 20 epochs. Changing this affects how long it takes to train. This will be clear when you start training. If you make the number lower, it will train faster but the fit won't be as good. If you make the number higher, the fit might be better, but it will train longer and there is a chance of overfitting.
 
 <b>Now run the script to train the model!</b>
 - This may take 10 minutes or so, depending on how may images you labeled, how many epochs you set, and the hardware dedicated to your virtual machine.
@@ -316,7 +314,7 @@ For this section, we will try to make a neural network to detect the queen bee w
 
 ## Label the queen bee
 <b>Open and run labTemplatePt3.py. Keep partNum at 0.</b><br>
-- Last time you were annotating images, now you are annotating a video. Everything works the same, but you don't need annotate every frame. Pressing space goes to the next frame, and pressing "next" skips 5 frames.
+- Last time you were annotating images, now you are annotating a video. Everything works the same, but you don't need to annotate every frame. Pressing space goes to the next frame, and pressing "next" skips 5 frames.
 - Press "next" until you see the queen. You can see her starting at frame 120. The last decent shot of her is at frame 380.
 - Press the next button until you get another clear view of the queen. Draw a bounding box around her.
 - Do this until you no longer see the queen. You should have labeled 20 to 40 images.
@@ -346,7 +344,7 @@ For this section, we will try to make a neural network to detect the queen bee w
     <b>Use Google!</b>
 
 ## Train with other queen images
-<b>Download 20 images of queen bees from the internet.</b><br>
+<b>Download at least 20 images of queen bees from the internet.</b><br>
 - Save them into the queenVideo folder.
 - Try to pick ones where the queen is with other bees.
 <br><img src="images/queen_example.jpg" width="600"><br>
@@ -358,9 +356,10 @@ For this section, we will try to make a neural network to detect the queen bee w
 - If you want to keep your first model, rename it before you train the new model
 
 <b>Test the model again by setting partNum to 2 and 3</b>
+- Hopefully it works better now!
 
 # Section 4: Train with different classes (extra credit- this takes a long time)
-Tensorflow allows you to train for up to 1000 classes. This means that you can make the detector find up to 1000 different things, all using the same model. This also improve the detector's ability to differentiate between the things you trained for Let's make a detector detect both the queen and worker bees.
+Tensorflow allows you to train for up to 1000 classes in a single model. This means that you can make the detector find up to 1000 different things, all using the same model. This also improve the detector's ability to differentiate between the things you trained for Let's make a detector detect both the queen and worker bees.
 
 ## Label the images as queen and worker
 <b> Move the contents of the queenVideos folder into the bee_imgs folder.</b><br>
@@ -374,18 +373,18 @@ Tensorflow allows you to train for up to 1000 classes. This means that you can m
     - Some of the bees may be partially cut out of the frame. Click on the box (make it green) and select the button "trunc" to make it truncated. A "t" will appear above it.
     - Some of the bees may be very blurry and hard to detect as well. Select the box and click the button "diff" to label it as difficult.
 - Label the queen as a queen by clicking on the queen box and clicking the "queen" button. The "w" in its bounding box will become a "q"
-
+<br><img src="images/queen_worker.jpg" width="400"><br>
 
 ## Train the model again
 <b> Change partNum to 1 and run the script to train.</b>
 - Once it produces the output model, look in the trained models folder. 
     - Notice that even though all of the models were trained with a different number of images and the recently trained one is able to detect both the queen and worker, they are all the same size.
 
-<br><img src="images/queen_worker.jpg" width="400"><br>
+
 
 <b> Change partNum to 2 and 3 to see the results</b>
 - It can detect both the queen and workers in just one model! Neat!
 
 <br><img src="images/queen_worker_detected.jpg" width="400"><br>
 
-## Your done!
+## You're done!
