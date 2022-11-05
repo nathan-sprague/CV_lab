@@ -1,13 +1,5 @@
 # ABE 590 Lab
 
-# About this lab:
-The first part of the lab requires using OpenCV's GUI, which is best done on your local machine, not from an online IDE, like Google Colab. The last part of the lab involving tensorflow, will be done on Google Colab.<br><br>
-
-This readme file (written in Markdown) is best viewed from GitHub. It has instructions on what to do for each step.
-
-It is recomended to keep the Github page open as you do this lab. 
-
-
 # Goal of the lab
 Count bees entering/exiting a hive using computer vision<br>
 Using an video like this, we see approximately how many bees there are.<br>
