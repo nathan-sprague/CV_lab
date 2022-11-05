@@ -1,11 +1,11 @@
 import numpy as np
 import cv2
 import time
-import labTools
+import helper_scripts.labTools as labTools
 import os
 
 
-partNum = 0
+partNum = 8
 
 
 def showImage(img):
@@ -166,8 +166,11 @@ def detectBees3(img, lastImg):
 
 
 
+
+
 #________________________________________________________________________________________________________________
 # dont edit any of the code below here:
+
 
 
 def run():
@@ -259,15 +262,19 @@ def run():
 		cap = cv2.VideoCapture(imageDir + "/images/realBees.avi")
 		ret = True
 		(ret, oldImg) = cap.read()
-		while ret:
+		while True:
 			(ret, img) = cap.read()
 			if ret:	
 				detected = detectBees3(img.copy(), oldImg.copy())
 				cv2.imshow("d", detected)
 				oldImg = img
-				k = cv2.waitKey(0)
+				k = cv2.waitKey(100)
 				if k == 27:
 					break
+			else:
+				cap = cv2.VideoCapture(imageDir + "/images/realBees.avi")
+	
+
 	else:
 		print("there is no part", partNum)
 	if partNum < 12:
